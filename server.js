@@ -43,13 +43,39 @@ mongoose.connect(MONGODB_URI)
   .catch(err => {
     console.error('❌ MongoDB connection error:', err);
     
+    // More detailed error logging
+    console.error('❌❌❌ DETAILED ERROR INFO:');
+    if (err.name === 'MongooseServerSelectionError') {
+      console.error('- Error Type: Server Selection Error (cannot reach MongoDB server)');
+      console.error('- This often means:');
+      console.error('  1. Your IP is not whitelisted in MongoDB Atlas');
+      console.error('  2. Your username/password is incorrect');
+      console.error('  3. Your cluster name is incorrect');
+      console.error('  4. Your cluster is not running');
+      
+      if (err.reason) {
+        console.error('- Servers in topology:', 
+          Array.from(err.reason.servers.keys()).join(', '));
+        
+        // Log details of each server
+        err.reason.servers.forEach((server, key) => {
+          console.error(`- Server ${key} details:`, 
+            JSON.stringify({
+              type: server.type,
+              error: server.error ? server.error.message : 'None'
+            }, null, 2));
+        });
+      }
+    }
+    
     // Provide more helpful error information
     if (err.code === 'ENOTFOUND' && err.hostname && err.hostname.includes('_mongodb._tcp')) {
       console.error('❌❌❌ IMPORTANT: Your MongoDB connection string appears to be malformed.');
       console.error('The correct format should be: mongodb+srv://username:password@clustername.mongodb.net/trashbid');
       console.error('Please update your MONGODB_URI environment variable in the Render dashboard.');
-      console.error('Full error details:', JSON.stringify(err, null, 2));
     }
+    
+    console.error('Full error details:', JSON.stringify(err, null, 2));
   });
 
 // Mongoose schema
