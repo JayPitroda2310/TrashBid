@@ -99,7 +99,12 @@ app.get('/api/products', async (req, res) => {
 // Create a product with image upload
 app.post('/api/products', upload.single('image'), async (req, res) => {
   try {
+    console.log('Product creation attempt...');
+    console.log('Request body:', req.body);
+    console.log('File:', req.file ? `File uploaded: ${req.file.filename}` : 'No file uploaded');
+    
     if (mongoose.connection.readyState !== 1) {
+      console.log('Database not connected, readyState:', mongoose.connection.readyState);
       return res.status(503).json({ 
         success: false, 
         message: 'Database not connected'
@@ -107,6 +112,12 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
     }
     
     const { name, description, quantity, startingPrice, biddingEndsAt } = req.body;
+    
+    // Validate required fields
+    if (!name) {
+      console.log('Missing required field: name');
+      return res.status(400).json({ success: false, message: 'Name is required' });
+    }
     
     // Check if file was uploaded
     let imageUrl = '';
@@ -117,7 +128,19 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
         ? `https://${req.get('host')}`
         : `http://localhost:${process.env.PORT || 5000}`;
       imageUrl = `${baseUrl}/uploads/${fileName}`;
+      console.log('Generated image URL:', imageUrl);
+    } else {
+      console.log('No image file in request');
     }
+    
+    console.log('Creating product with data:', {
+      name,
+      description,
+      quantity: parseInt(quantity) || 0,
+      startingPrice: parseFloat(startingPrice) || 0,
+      biddingEndsAt,
+      imageUrl
+    });
     
     const product = new Product({
       name,
@@ -129,11 +152,20 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
       bids: []
     });
     
-    await product.save();
-    res.status(201).json({ success: true, product });
+    console.log('Saving product to database...');
+    const savedProduct = await product.save();
+    console.log('Product saved successfully:', savedProduct);
+    
+    res.status(201).json({ success: true, product: savedProduct });
   } catch (error) {
-    console.error('Error creating product:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('❌ Error creating product:', error);
+    // Send detailed error information
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error while creating product', 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'production' ? null : error.stack
+    });
   }
 });
 
@@ -264,6 +296,88 @@ app.get('/api/mongodb-status', (req, res) => {
     models: Object.keys(mongoose.models),
     timestamp: new Date()
   });
+});
+
+// Test file upload endpoint
+app.post('/api/test-upload', upload.single('testImage'), (req, res) => {
+  try {
+    console.log('Test upload attempt');
+    console.log('Headers:', req.headers);
+    
+    if (!req.file) {
+      console.log('No file received in test upload');
+      return res.status(400).json({ 
+        success: false, 
+        message: 'No file uploaded',
+        body: req.body
+      });
+    }
+    
+    console.log('Test file uploaded:', req.file);
+    
+    const fileName = req.file.filename;
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? `https://${req.get('host')}`
+      : `http://localhost:${process.env.PORT || 5000}`;
+    const imageUrl = `${baseUrl}/uploads/${fileName}`;
+    
+    res.json({
+      success: true,
+      message: 'Test file uploaded successfully',
+      file: {
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        path: req.file.path,
+        url: imageUrl
+      }
+    });
+  } catch (error) {
+    console.error('Error in test upload:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error in test upload',
+      error: error.message
+    });
+  }
+});
+
+// Check uploads directory
+app.get('/api/check-uploads', (req, res) => {
+  try {
+    // Check if uploads directory exists
+    const uploadsExists = fs.existsSync('./uploads');
+    
+    let files = [];
+    if (uploadsExists) {
+      // Get list of files in uploads directory
+      files = fs.readdirSync('./uploads').map(file => {
+        const stats = fs.statSync(`./uploads/${file}`);
+        return {
+          name: file,
+          size: stats.size,
+          created: stats.birthtime,
+          isDirectory: stats.isDirectory()
+        };
+      });
+    }
+    
+    res.json({
+      success: true,
+      uploadsDirectoryExists: uploadsExists,
+      files: files,
+      currentDirectory: __dirname,
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    console.error('Error checking uploads directory:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error checking uploads directory',
+      error: error.message
+    });
+  }
 });
 
 // Start the server
