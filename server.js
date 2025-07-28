@@ -18,7 +18,24 @@ if (!fs.existsSync('./uploads')) {
 
 // MongoDB connection - use environment variable for production
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/trashbid';
-console.log("Attempting to connect to MongoDB with URI:", MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//\\1:****@')); // Log masked URI for debugging
+console.log("=== DEBUG INFO ===");
+console.log("MONGODB_URI set? ", process.env.MONGODB_URI ? "YES" : "NO");
+if (process.env.MONGODB_URI) {
+  // Log masked URI for debugging
+  const maskedUri = process.env.MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//\\1:****@');
+  console.log("URI format: ", maskedUri);
+  
+  // Check if URI includes mongodb+srv:// protocol
+  if (!process.env.MONGODB_URI.startsWith('mongodb+srv://') && !process.env.MONGODB_URI.startsWith('mongodb://')) {
+    console.error("❌❌❌ URI DOES NOT START WITH mongodb+srv:// or mongodb:// - This is invalid!");
+  }
+  
+  // Check if it contains @
+  if (!process.env.MONGODB_URI.includes('@')) {
+    console.error("❌❌❌ URI DOES NOT CONTAIN @ - This suggests missing username:password!");
+  }
+}
+console.log("=== END DEBUG INFO ===");
 
 // Remove deprecated options
 mongoose.connect(MONGODB_URI)
@@ -31,6 +48,7 @@ mongoose.connect(MONGODB_URI)
       console.error('❌❌❌ IMPORTANT: Your MongoDB connection string appears to be malformed.');
       console.error('The correct format should be: mongodb+srv://username:password@clustername.mongodb.net/trashbid');
       console.error('Please update your MONGODB_URI environment variable in the Render dashboard.');
+      console.error('Full error details:', JSON.stringify(err, null, 2));
     }
   });
 
@@ -179,6 +197,23 @@ app.delete('/api/products/:id', async (req, res) => {
     console.error('❌ Error deleting product:', error);
     res.status(500).json({ success: false, message: '🚨 Server error while deleting product' });
   }
+});
+
+// Debug endpoint to see environment variables (masked)
+app.get('/debug', (req, res) => {
+  const envVars = {};
+  
+  // Add masked MONGODB_URI
+  if (process.env.MONGODB_URI) {
+    envVars.MONGODB_URI = process.env.MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//\\1:****@');
+  } else {
+    envVars.MONGODB_URI = "Not set";
+  }
+  
+  res.json({
+    environment: process.env.NODE_ENV || 'development',
+    variables: envVars
+  });
 });
 
 // Health check endpoint
