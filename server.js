@@ -6,7 +6,12 @@ const multer = require('multer');
 const fs = require('fs');
 
 const app = express();
-app.use(cors());
+// Enable CORS for all routes with specific options
+app.use(cors({
+  origin: '*', // Allow all origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(express.static(__dirname));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -80,7 +85,10 @@ app.get('/api/status', (req, res) => {
 // Get all products
 app.get('/api/products', async (req, res) => {
   try {
+    console.log('Fetching all products...');
+    
     if (mongoose.connection.readyState !== 1) {
+      console.log('Database not connected, readyState:', mongoose.connection.readyState);
       return res.status(503).json({ 
         success: false, 
         message: 'Database not connected',
@@ -89,6 +97,13 @@ app.get('/api/products', async (req, res) => {
     }
     
     const products = await Product.find();
+    console.log(`Found ${products.length} products`);
+    
+    // Set CORS headers explicitly for this response
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    
     res.json({ success: true, products });
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -155,6 +170,11 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
     console.log('Saving product to database...');
     const savedProduct = await product.save();
     console.log('Product saved successfully:', savedProduct);
+    
+    // Set CORS headers explicitly for this response
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'POST');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
     
     res.status(201).json({ success: true, product: savedProduct });
   } catch (error) {
@@ -241,6 +261,11 @@ app.get('/api/stats', async (req, res) => {
 
     const greenContribution = (wasteRecycled * 0.85).toFixed(2);
 
+    // Set CORS headers explicitly for this response
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    
     res.json({
       success: true,
       stats: {

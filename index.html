@@ -302,9 +302,10 @@
 <body>
 
   <!-- Background Video -->
-  <video class="video-bg" autoplay muted loop>
+  <div class="video-bg" style="background-image: url('240_F_812672374_kjTgzHRmXyu7QbHmwBZaDnbrrzSbX0xC.jpg'); background-size: cover; background-position: center;"></div>
+  <!-- <video class="video-bg" autoplay muted loop>
     <source src="bg.mp4" type="video/mp4">
-  </video>
+  </video> -->
 
   <!-- Overlay -->
   <div class="video-overlay"></div>
@@ -572,47 +573,25 @@
 
     async function updateStatsSection() {
     try {
-      const res = await fetch('http://localhost:5000/api/products');
+      const res = await fetch('https://trashbid.onrender.com/api/stats');
       const data = await res.json();
-      if (!data.success) throw new Error('Failed to fetch products.');
+      if (!data.success) throw new Error('Failed to fetch stats.');
 
-      const products = data.products;
-      let totalListings = products.length;
-      let totalQuantity = 0;
-      let totalClosedBids = 0;
-
-      const now = new Date();
-
-      products.forEach(product => {
-        totalQuantity += Number(product.quantity || 0);
-
-        const bids = product.bids || [];
-        const highestBid = bids.length
-          ? bids.reduce((prev, curr) => curr.amount > prev.amount ? curr : prev).amount
-          : product.startingPrice || 0;
-
-        const biddingEnd = new Date(product.biddingEndsAt);
-        const isClosed = now > biddingEnd;
-
-        if (isClosed) {
-          totalClosedBids += Number(highestBid);
-        }
-      });
-
-      // Calculate Green Contribution (based on ₹10 saved per kg)
-      const greenContribution = totalQuantity > 0
-        ? Math.min(((totalClosedBids / (totalQuantity * 10)) * 100).toFixed(1), 100)
-        : 0;
-
+      const stats = data.stats;
+      
       // Update DOM
-      animateCount('totalProducts', 0, totalListings, '', 1000);
-      animateCount('totalQuantity', 0, totalQuantity, ' KG', 1000);
-      animateCount('totalBids', 0, totalClosedBids, '₹', 1000);
-      animateCount('greenContribution', 0, greenContribution, '%', 1000);
-
+      animateCount('totalProducts', 0, stats.listings || 0, '', 1000);
+      animateCount('totalQuantity', 0, stats.wasteRecycled || 0, ' KG', 1000);
+      animateCount('totalBids', 0, stats.totalBids || 0, '₹', 1000);
+      animateCount('greenContribution', 0, parseFloat(stats.greenContribution) || 0, '%', 1000);
 
     } catch (err) {
       console.error('Failed to update stats:', err);
+      // Set default values if API fails
+      animateCount('totalProducts', 0, 0, '', 1000);
+      animateCount('totalQuantity', 0, 0, ' KG', 1000);
+      animateCount('totalBids', 0, 0, '₹', 1000);
+      animateCount('greenContribution', 0, 0, '%', 1000);
     }
   }
 

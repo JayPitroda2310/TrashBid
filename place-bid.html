@@ -161,14 +161,18 @@
       formData.delete("biddingMinutes");
 
       try {
-        const response = await fetch('http://localhost:5000/api/products', {
+        const response = await fetch('https://trashbid.onrender.com/api/products', {
           method: 'POST',
           body: formData
         });
 
         const result = await response.json();
-        alert(result.message || "Product listed successfully!");
-        form.reset();
+        if (result.success) {
+          alert("✅ Product listed successfully!");
+          form.reset();
+        } else {
+          alert("❌ " + (result.message || "Failed to list product. Please try again."));
+        }
       } catch (err) {
         alert("❌ Failed to list product. Please try again.");
         console.error(err);

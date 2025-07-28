@@ -118,7 +118,7 @@
   <script>
     async function fetchListings() {
       try {
-        const res = await fetch('http://localhost:5000/api/products');
+        const res = await fetch('https://trashbid.onrender.com/api/products');
         const json = await res.json();
 
         if (!json.success) {
@@ -149,7 +149,7 @@
           const highest = highestBidObj.amount;
 
           card.innerHTML = `
-            <img src="http://localhost:5000${product.imageUrl}" alt="${product.name}" />
+            <img src="${product.imageUrl}" alt="${product.name}" />
             <div class="card-content">
               <h3>${product.name}</h3>
               <p>${product.description}</p>
@@ -231,7 +231,7 @@
 
         localStorage.setItem(`bidderName-${id}`, data.bidderName);
 
-        const r = await fetch(`http://localhost:5000/api/products/${id}/bid`, {
+        const r = await fetch(`https://trashbid.onrender.com/api/products/${id}/bid`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
@@ -248,7 +248,7 @@
       if (!confirmDelete) return;
 
       try {
-        const res = await fetch(`http://localhost:5000/api/products/${productId}`, {
+        const res = await fetch(`https://trashbid.onrender.com/api/products/${productId}`, {
           method: 'DELETE',
         });
 
