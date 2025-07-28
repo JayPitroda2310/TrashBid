@@ -3,10 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const admin = require('firebase-admin');
-
-// Initialize Firebase Admin
-admin.initializeApp();
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
@@ -15,7 +12,6 @@ app.use(express.static(__dirname));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Ensure uploads directory exists
-const fs = require('fs');
 if (!fs.existsSync('./uploads')) {
   fs.mkdirSync('./uploads');
 }
@@ -45,9 +41,6 @@ const productSchema = new mongoose.Schema({
 
 const Product = mongoose.model('Product', productSchema);
 
-// Configure Firebase Storage bucket
-const bucket = admin.storage().bucket();
-
 // Multer setup for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -65,41 +58,29 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
   try {
     const { name, description, quantity, startingPrice, biddingEndsAt } = req.body;
     
-    // Upload file to Firebase Storage
-    const file = req.file;
-    const fileName = Date.now() + path.extname(file.originalname);
-    const fileUpload = bucket.file(fileName);
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: '🚨 No image uploaded' });
+    }
     
-    const blobStream = fileUpload.createWriteStream({
-      metadata: {
-        contentType: file.mimetype
-      }
+    // Generate URL for the uploaded file
+    const fileName = req.file.filename;
+    const baseUrl = process.env.NODE_ENV === 'production' 
+      ? `https://${req.get('host')}`
+      : `http://localhost:${process.env.PORT || 5000}`;
+    const imageUrl = `${baseUrl}/uploads/${fileName}`;
+
+    const product = new Product({
+      name,
+      description,
+      quantity,
+      startingPrice,
+      biddingEndsAt,
+      imageUrl,
+      bids: []
     });
 
-    blobStream.on('error', (error) => {
-      console.error('❌ Error uploading to Firebase Storage:', error);
-      res.status(500).json({ success: false, message: '🚨 Upload error' });
-    });
-
-    blobStream.on('finish', async () => {
-      // Get the public URL
-      const imageUrl = `https://storage.googleapis.com/${bucket.name}/${fileName}`;
-
-      const product = new Product({
-        name,
-        description,
-        quantity,
-        startingPrice,
-        biddingEndsAt,
-        imageUrl,
-        bids: []
-      });
-
-      await product.save();
-      res.status(201).json({ success: true, message: '✅ Product listed successfully', product });
-    });
-
-    blobStream.end(file.buffer);
+    await product.save();
+    res.status(201).json({ success: true, message: '✅ Product listed successfully', product });
   } catch (error) {
     console.error('❌ Error adding product:', error);
     res.status(500).json({ success: false, message: '🚨 Server error' });
@@ -195,7 +176,3 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server is running on port ${PORT}`);
 });
-
-// Export the Express app as a Cloud Function
-const functions = require('firebase-functions');
-exports.api = functions.https.onRequest(app);
