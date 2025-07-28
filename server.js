@@ -1,252 +1,108 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Ensure uploads directory exists
-if (!fs.existsSync('./uploads')) {
-  fs.mkdirSync('./uploads');
-}
+// MongoDB connection string - will be overridden by environment variable
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/trashbid';
 
-// MongoDB connection - use environment variable for production
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/trashbid';
-console.log("=== DEBUG INFO ===");
-console.log("MONGODB_URI set? ", process.env.MONGODB_URI ? "YES" : "NO");
-if (process.env.MONGODB_URI) {
-  // Log masked URI for debugging
-  const maskedUri = process.env.MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//\\1:****@');
-  console.log("URI format: ", maskedUri);
-  
-  // Check if URI includes mongodb+srv:// protocol
-  if (!process.env.MONGODB_URI.startsWith('mongodb+srv://') && !process.env.MONGODB_URI.startsWith('mongodb://')) {
-    console.error("❌❌❌ URI DOES NOT START WITH mongodb+srv:// or mongodb:// - This is invalid!");
-  }
-  
-  // Check if it contains @
-  if (!process.env.MONGODB_URI.includes('@')) {
-    console.error("❌❌❌ URI DOES NOT CONTAIN @ - This suggests missing username:password!");
-  }
-}
-console.log("=== END DEBUG INFO ===");
+// Log connection attempt (with masked password)
+console.log('Attempting to connect to MongoDB...');
+console.log('Connection string (masked):', 
+  MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//\\1:****@'));
 
-// Remove deprecated options
+// Connect to MongoDB without deprecated options
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('✅ MongoDB Connected'))
   .catch(err => {
     console.error('❌ MongoDB connection error:', err);
-    
-    // More detailed error logging
-    console.error('❌❌❌ DETAILED ERROR INFO:');
-    if (err.name === 'MongooseServerSelectionError') {
-      console.error('- Error Type: Server Selection Error (cannot reach MongoDB server)');
-      console.error('- This often means:');
-      console.error('  1. Your IP is not whitelisted in MongoDB Atlas');
-      console.error('  2. Your username/password is incorrect');
-      console.error('  3. Your cluster name is incorrect');
-      console.error('  4. Your cluster is not running');
-      
-      if (err.reason) {
-        console.error('- Servers in topology:', 
-          Array.from(err.reason.servers.keys()).join(', '));
-        
-        // Log details of each server
-        err.reason.servers.forEach((server, key) => {
-          console.error(`- Server ${key} details:`, 
-            JSON.stringify({
-              type: server.type,
-              error: server.error ? server.error.message : 'None'
-            }, null, 2));
-        });
-      }
-    }
-    
-    // Provide more helpful error information
-    if (err.code === 'ENOTFOUND' && err.hostname && err.hostname.includes('_mongodb._tcp')) {
-      console.error('❌❌❌ IMPORTANT: Your MongoDB connection string appears to be malformed.');
-      console.error('The correct format should be: mongodb+srv://username:password@clustername.mongodb.net/trashbid');
-      console.error('Please update your MONGODB_URI environment variable in the Render dashboard.');
-    }
-    
-    console.error('Full error details:', JSON.stringify(err, null, 2));
+    // Continue running the app even if MongoDB fails
+    console.log('⚠️ Running without database functionality');
   });
 
-// Mongoose schema
+// Simple product schema
 const productSchema = new mongoose.Schema({
   name: String,
   description: String,
-  quantity: Number,
-  startingPrice: Number,
-  imageUrl: String,
-  biddingEndsAt: Date,
-  bids: [{
-    bidderName: String,
-    amount: Number,
-    timestamp: { type: Date, default: Date.now }
-  }]
+  createdAt: { type: Date, default: Date.now }
 });
 
 const Product = mongoose.model('Product', productSchema);
 
-// Multer setup for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
+// Simple routes
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-const upload = multer({ storage: storage });
-
-// 🟢 POST: Create new product
-app.post('/api/products', upload.single('image'), async (req, res) => {
-  try {
-    const { name, description, quantity, startingPrice, biddingEndsAt } = req.body;
-    
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: '🚨 No image uploaded' });
-    }
-    
-    // Generate URL for the uploaded file
-    const fileName = req.file.filename;
-    const baseUrl = process.env.NODE_ENV === 'production' 
-      ? `https://${req.get('host')}`
-      : `http://localhost:${process.env.PORT || 5000}`;
-    const imageUrl = `${baseUrl}/uploads/${fileName}`;
-
-    const product = new Product({
-      name,
-      description,
-      quantity,
-      startingPrice,
-      biddingEndsAt,
-      imageUrl,
-      bids: []
-    });
-
-    await product.save();
-    res.status(201).json({ success: true, message: '✅ Product listed successfully', product });
-  } catch (error) {
-    console.error('❌ Error adding product:', error);
-    res.status(500).json({ success: false, message: '🚨 Server error' });
-  }
-});
-
-// 🟡 GET: Fetch all products
-app.get('/api/products', async (req, res) => {
-  try {
-    const products = await Product.find();
-    res.json({ success: true, products });
-  } catch (error) {
-    console.error('❌ Error fetching products:', error);
-    res.status(500).json({ success: false, message: '🚨 Server error' });
-  }
-});
-
-// 🔵 POST: Place a bid
-app.post('/api/products/:id/bid', async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
-
-    const { bidderName, amount } = req.body;
-    const now = new Date();
-
-    if (now > new Date(product.biddingEndsAt)) {
-      return res.status(400).json({ success: false, message: 'Bidding period has ended' });
-    }
-
-    const highestBid = product.bids.reduce((max, bid) => bid.amount > max ? bid.amount : max, product.startingPrice);
-    if (amount <= highestBid) {
-      return res.status(400).json({ success: false, message: `Bid must be higher than ₹${highestBid}` });
-    }
-
-    product.bids.push({ bidderName, amount });
-    await product.save();
-
-    res.json({ success: true, message: '✅ Bid placed successfully', product });
-  } catch (error) {
-    console.error('❌ Error placing bid:', error);
-    res.status(500).json({ success: false, message: '🚨 Server error' });
-  }
-});
-
-// 🟣 GET: Stats endpoint
-app.get('/api/stats', async (req, res) => {
-  try {
-    const products = await Product.find();
-    const listings = products.length;
-
-    const totalBids = products.reduce((sum, product) => {
-      const maxBid = product.bids.reduce((max, bid) => bid.amount > max ? bid.amount : max, product.startingPrice);
-      return sum + maxBid;
-    }, 0);
-
-    const wasteRecycled = products.reduce((sum, product) => sum + product.quantity, 0);
-
-    const greenContribution = (wasteRecycled * 0.85).toFixed(2); // Example formula
-
-    res.json({
-      success: true,
-      stats: {
-        listings,
-        totalBids,
-        wasteRecycled,
-        greenContribution
-      }
-    });
-  } catch (error) {
-    console.error('❌ Error getting stats:', error);
-    res.status(500).json({ success: false, message: '🚨 Server error' });
-  }
-});
-
-// 🔴 DELETE: Remove a product by ID
-app.delete('/api/products/:id', async (req, res) => {
-  try {
-    const product = await Product.findByIdAndDelete(req.params.id);
-    if (!product) {
-      return res.status(404).json({ success: false, message: '❌ Product not found' });
-    }
-
-    res.json({ success: true, message: '🗑️ Product deleted successfully' });
-  } catch (error) {
-    console.error('❌ Error deleting product:', error);
-    res.status(500).json({ success: false, message: '🚨 Server error while deleting product' });
-  }
-});
-
-// Debug endpoint to see environment variables (masked)
-app.get('/debug', (req, res) => {
-  const envVars = {};
-  
-  // Add masked MONGODB_URI
-  if (process.env.MONGODB_URI) {
-    envVars.MONGODB_URI = process.env.MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//\\1:****@');
-  } else {
-    envVars.MONGODB_URI = "Not set";
-  }
-  
+// API routes
+app.get('/api/status', (req, res) => {
   res.json({
-    environment: process.env.NODE_ENV || 'development',
-    variables: envVars
+    server: 'online',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    timestamp: new Date()
   });
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'UP',
-    mongodb: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+// Get all products
+app.get('/api/products', async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Database not connected',
+        readyState: mongoose.connection.readyState
+      });
+    }
+    
+    const products = await Product.find();
+    res.json({ success: true, products });
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Create a product
+app.post('/api/products', async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ 
+        success: false, 
+        message: 'Database not connected'
+      });
+    }
+    
+    const { name, description } = req.body;
+    const product = new Product({ name, description });
+    await product.save();
+    res.status(201).json({ success: true, product });
+  } catch (error) {
+    console.error('Error creating product:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// Detailed MongoDB status
+app.get('/api/mongodb-status', (req, res) => {
+  const readyStateMap = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting',
+    99: 'uninitialized'
+  };
+  
+  res.json({
+    readyState: mongoose.connection.readyState,
+    status: readyStateMap[mongoose.connection.readyState] || 'unknown',
+    host: mongoose.connection.host || 'none',
+    name: mongoose.connection.name || 'none',
+    models: Object.keys(mongoose.models),
     timestamp: new Date()
   });
 });
