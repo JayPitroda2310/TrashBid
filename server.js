@@ -18,11 +18,21 @@ if (!fs.existsSync('./uploads')) {
 
 // MongoDB connection - use environment variable for production
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/trashbid';
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => console.log('✅ MongoDB Connected'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+console.log("Attempting to connect to MongoDB with URI:", MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, '//\\1:****@')); // Log masked URI for debugging
+
+// Remove deprecated options
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('✅ MongoDB Connected'))
+  .catch(err => {
+    console.error('❌ MongoDB connection error:', err);
+    
+    // Provide more helpful error information
+    if (err.code === 'ENOTFOUND' && err.hostname && err.hostname.includes('_mongodb._tcp')) {
+      console.error('❌❌❌ IMPORTANT: Your MongoDB connection string appears to be malformed.');
+      console.error('The correct format should be: mongodb+srv://username:password@clustername.mongodb.net/trashbid');
+      console.error('Please update your MONGODB_URI environment variable in the Render dashboard.');
+    }
+  });
 
 // Mongoose schema
 const productSchema = new mongoose.Schema({
@@ -169,6 +179,15 @@ app.delete('/api/products/:id', async (req, res) => {
     console.error('❌ Error deleting product:', error);
     res.status(500).json({ success: false, message: '🚨 Server error while deleting product' });
   }
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'UP',
+    mongodb: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+    timestamp: new Date()
+  });
 });
 
 // Start the server
