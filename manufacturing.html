@@ -1,0 +1,64 @@
+<!-- Industry Pages Template: Example for Manufacturing -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TrashBid - Manufacturing Industry</title>
+  <link rel="stylesheet" href="/styles/navbar-footer.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #f4f4f4;
+      color: #333;
+    }
+    .industry-section {
+      max-width: 1000px;
+      margin: 60px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .industry-section h1 {
+      font-size: 32px;
+      color: #006400;
+      margin-bottom: 20px;
+    }
+    .industry-section p {
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    .industry-section ul {
+      margin-top: 20px;
+      padding-left: 20px;
+    }
+    .industry-section ul li {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Include Navbar -->
+  <div id="navbar"></div>
+
+  <div class="industry-section">
+    <h1>Manufacturing Industry</h1>
+    <p>The manufacturing industry generates large amounts of scrap metals, plastic waste, and defective items that can be reused by other businesses.</p>
+    <ul>
+      <li><strong>Use-case:</strong> Scrap metals, plastic waste, defective items, excess materials</li>
+      <li><strong>TrashBid Helps:</strong> List and sell these materials through competitive bidding</li>
+      <li><strong>Impact:</strong> Lower disposal costs and promote recycling-based revenue</li>
+    </ul>
+  </div>
+
+  <!-- Include Footer -->
+  <div id="footer"></div>
+
+  <script>
+    // Load navbar and footer
+    document.getElementById('navbar').innerHTML = await (await fetch('/components/navbar.html')).text();
+    document.getElementById('footer').innerHTML = await (await fetch('/components/footer.html')).text();
+  </script>
+</body>
+</html>

@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TrashBid</title>
+  <link rel="icon" href="logo.png" type="image/png">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow-x: hidden;
+    }
+
+    .video-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      min-width: 100%;
+      min-height: 100%;
+      object-fit: cover;
+      z-index: -2;
+    }
+
+    .video-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.37);
+      z-index: -1;
+    }
+
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(24, 24, 24, 0.952);
+      border-radius: 15px;
+      padding: 10px 20px;
+      margin: 15px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      margin-right: 30px;
+    }
+
+    .navbar .logo {
+      display: flex;
+      align-items: center;
+    }
+
+    .navbar .logo img {
+      height: 35px;
+      margin-right: 10px;
+    }
+
+    .navbar .logo span {
+      font-size: 24px;
+      color: white;
+      font-weight: 500;
+    }
+
+    .navbar ul {
+      display: flex;
+      list-style: none;
+      gap: 25px;
+      position: relative;
+      align-items: center;
+    }
+
+    .navbar ul li a {
+      text-decoration: none;
+      color: white;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 6px;
+      transition: all 0.3s ease;
+    }
+
+    .navbar ul li a.listings-btn {
+      border: 1.5px solid white;
+    }
+
+    .navbar ul li a.bid-btn {
+      background-color: #66bd51;
+      color: white;
+      font-weight: 600;
+    }
+
+    .navbar ul li a.bid-btn:hover {
+      background-color: #57a743;
+    }
+
+    .navbar .search-icon {
+      width: 22px;
+      height: 22px;
+      fill: white;
+      cursor: pointer;
+    }
+
+    .submenu-box {
+      display: none;
+      position: fixed;
+      top: 85px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(24, 24, 24, 0.95);
+      border-radius: 12px;
+      padding: 20px;
+      width: 500px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      flex-wrap: wrap;
+      gap: 16px;
+      z-index: 9;
+      justify-content: center;
+    }
+
+    .submenu-box span {
+      color: white;
+      font-size: 15px;
+      width: calc(50% - 8px);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    }
+
+    .submenu-box span::after {
+      content: '→';
+      transition: transform 0.3s ease;
+    }
+
+    .submenu-box span:hover {
+      color: #57a743;
+    }
+
+    .submenu-box span:hover::after {
+      transform: translateX(4px);
+    }
+
+    .search-box {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 85px;
+      background: rgba(0, 0, 0, 0.96);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: translateY(-100%);
+      transition: transform 0.4s ease;
+      z-index: 100;
+      padding: 0 30px;
+    }
+
+    .search-box.active {
+      transform: translateY(0);
+    }
+
+    .search-container {
+      position: relative;
+      width: 50%;
+    }
+
+    .search-container input {
+      width: 100%;
+      padding: 10px 36px 10px 36px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+      outline: none;
+      height: 40px;
+    }
+
+    .search-container .input-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      stroke: gray;
+      fill: none;
+      pointer-events: none;
+    }
+
+    .search-container .clear-icon {
+      position: absolute;
+      right: 10px;
+      top: 45%;
+      transform: translateY(-50%);
+      color: gray;
+      cursor: pointer;
+      font-size: 22px;
+      display: none;
+      line-height: 1;
+    }
+
+    .search-container .clear-icon:hover {
+      color: white;
+    }
+
+    .search-box .close-btn {
+      margin-left: 20px;
+      font-size: 24px;
+      color: white;
+      cursor: pointer;
+    }
+
+    .content {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      text-align: left;
+      color: white;
+      padding-left: 80px;
+      padding-top: 40px;
+      max-width: 800px;
+      margin-top: 60px;
+    }
+
+    .content h1 {
+      font-size: 60px;
+      text-shadow: 2px 2px 10px rgba(0,0,0,0.7);
+    }
+
+    .content .subline {
+      font-size: 24px;
+      margin-top: 15px;
+      color: #dcdcdc;
+      text-shadow: 1px 1px 8px rgba(0, 0, 0, 0.5);
+      max-width: 700px;
+    }
+
+    
+
+    .stats-center {
+      display: flex;
+      justify-content: center;
+      gap: 80px;
+      margin-top: 50px;
+      flex-wrap: wrap;
+      width: 168%;
+    }
+
+    .stat-box {
+      text-align: center;
+      color: #ffffff;
+    }
+
+    .stat-box .stat-value {
+      font-size: 30px;
+      font-weight: bold;
+      color: #ffffff;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .stat-box p {
+      font-size: 22px;
+      color: #f0f0f0;
+    }
+
+    .divider-line{
+      margin-left: 5px;
+      margin-right: 20px;
+      width: 168%;
+      height: 4px;
+      background-color: #57a743;
+      margin-top: 80px;
+      border-color: #57a743;
+      margin-bottom: 20px;
+    }
+
+    .highlight {
+  color: #57a743; /* Use any color you like */
+}
+
+.listings-btn:hover {
+  background-color: white;
+  color: black;
+  transition: all 0.3s ease;
+}
+
+
+  
+
+  </style>
+</head>
+<body>
+
+  <!-- Background Video -->
+  <video class="video-bg" autoplay muted loop>
+    <source src="bg.mp4" type="video/mp4">
+  </video>
+
+  <!-- Overlay -->
+  <div class="video-overlay"></div>
+
+  <!-- Search Bar -->
+  <div class="search-box" id="searchBox">
+    <div class="search-container">
+      <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M21 21l-4.35-4.35M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13z" stroke-width="2" stroke="gray"/>
+      </svg>
+      <input type="text" id="searchInput" placeholder="Search..." oninput="toggleClearIcon()" />
+      <span class="clear-icon" id="clearInput" onclick="clearSearch()">×</span>
+    </div>
+    <div class="close-btn" onclick="toggleSearchBox()">✖</div>
+  </div>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="logo">
+      <img src="logo.png" alt="Logo">
+      <span><a href="index.html" style="text-decoration: none; color: inherit;">TrashBid</a></span>
+    </div>
+    <ul>
+      <li onmouseenter="showSubmenu('industries')" onmouseleave="hideSubmenu()"><a href="#">Industries</a></li>
+      <li onmouseenter="showSubmenu('solutions')" onmouseleave="hideSubmenu()"><a href="#">Solutions</a></li>
+      <li onmouseenter="showSubmenu('sustainability')" onmouseleave="hideSubmenu()"><a href="#">Sustainability</a></li>
+      <li onmouseenter="showSubmenu('insights')" onmouseleave="hideSubmenu()"><a href="#">Insights</a></li>
+      <li onmouseenter="showSubmenu('about')" onmouseleave="hideSubmenu()"><a href="#">About</a></li>
+      <li><a href="listings.html" class="listings-btn">Listings</a></li>
+      <li><a href="place-bid.html" class="bid-btn">Place your Bid</a></li>
+      <li>
+        <svg class="search-icon" onclick="toggleSearchBox()" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path fill="white" d="M9.5 3C13.09 3 16 5.91 16 9.5C16 11.11 15.37 12.58 14.34 13.68L20.39 19.73L19.32 20.8L13.27 14.75C12.17 15.78 10.7 16.41 9.09 16.41C5.5 16.41 2.59 13.5 2.59 9.91C2.59 6.32 5.5 3.41 9.09 3.41C9.23 3.41 9.37 3.41 9.5 3M9.5 5C7.01 5 5 7.01 5 9.5S7.01 14 9.5 14 14 11.99 14 9.5 11.99 5 9.5 5Z" />
+        </svg>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Submenu -->
+  <div class="submenu-box" id="submenu-box" onmouseenter="cancelHide()" onmouseleave="hideSubmenu()"></div>
+
+  <!-- Main Content -->
+  <section class="content">
+  <h1>Welcome to <span class="highlight">TrashBid</span></h1>
+    <p class="subline">Bid smarter. Waste less. Profit more.</p>
+
+    <hr class="divider-line">
+
+    <div class="stats-center" id="statsSection">
+  <div class="stat-box">
+    <span class="stat-value" id="totalProducts">0</span>
+    <p>♻️ Total Listings</p>
+  </div>
+  <div class="stat-box">
+    <span class="stat-value" id="totalQuantity">0 KG</span>
+    <p>📦 Total Quantity</p>
+  </div>
+  <div class="stat-box">
+    <span class="stat-value" id="totalBids">₹0</span>
+    <p>💰 Total Closed Bids</p>
+  </div>
+  <div class="stat-box">
+    <span class="stat-value" id="greenContribution">0%</span>
+    <p>🌱 Green Contribution</p>
+  </div>
+</div>
+
+  </section>
+
+  <section style="padding: 60px 150px; background: rgb(255, 255, 255); color: #000000; overflow: hidden;">
+  <h2 style="font-size: 40px; margin-bottom: 20px;">Why TrashBid?</h2>
+  
+  <img src="logo.png" alt="TrashBid Logo" style="float: left; height: 200px; margin-right: 30px; margin-bottom: 10px;">
+
+  <p style="font-size: 22px; line-height: 1.5; text-align: justify;">
+    At <strong>TrashBid</strong>, we believe that waste doesn’t have to be wasted. Whether you’re a business looking to get rid of leftover industrial material or someone on the lookout for valuable recyclables, we’ve got you covered.
+    Our smart bidding platform connects industries with the right buyers, making the process easy, transparent, and eco-friendly. Let’s turn trash into treasure — together!
+  </p><br>
+  <p style="font-size: 22px; line-height: 1.5; text-align: justify;">
+    At <strong>TrashBid</strong>, we're turning industrial waste into real-world opportunity. Whether you're a manufacturer with excess materials or a recycler looking for valuable resources, our smart bidding platform helps you connect, compete, and close the loop — profitably.
+    It's not just about managing waste; it’s about <strong>reshaping how industries think about sustainability</strong>. With transparent listings, real-time bidding, and data-driven insights, we make it easy to <strong>bid smarter, reduce waste, and build a greener tomorrow</strong> — together. Join us in transforming trash into treasure!
+  </p>
+</section>
+
+
+<!-- Benefits Section -->
+<!-- TrashBid Benefits Section with White Background -->
+<section style="max-width: 1100px; margin: 60px auto; padding: 60px 40px; background: #ffffff; border-radius: 16px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);">
+  <h2 style="font-size: 32px; margin-bottom: 32px; color: #1c1c1c; text-align: center;">
+    ♻️ Turn industrial waste into economic opportunity.
+  </h2>
+
+  <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 30px;">
+
+    <!-- Box 1 -->
+    <div style="flex: 1 1 30%; min-width: 260px;">
+      <h3 style="font-size: 36px; color: #57a743;">30%+</h3>
+      <p style="font-size: 18px; line-height: 1.6; color: #333;">
+        Save over 30% on raw material procurement by buying recyclable waste through our bidding system.
+      </p>
+    </div>
+
+    <!-- Box 2 -->
+    <div style="flex: 1 1 30%; min-width: 260px;">
+      <h3 style="font-size: 36px; color: #57a743;">⏱ Real-Time</h3>
+      <p style="font-size: 18px; line-height: 1.6; color: #333;">
+        Experience instant bidding, live countdowns, and automated bid wins — no manual effort needed.
+      </p>
+    </div>
+
+    <!-- Box 3 -->
+    <div style="flex: 1 1 30%; min-width: 260px;">
+      <h3 style="font-size: 36px; color: #57a743;">🌍 Eco Impact</h3>
+      <p style="font-size: 18px; line-height: 1.6; color: #333;">
+        Every transaction contributes to a cleaner planet by reducing landfill waste and promoting reuse.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<footer style="background-color: #222222; color: #ffffff; padding: 60px 40px; font-family: 'Segoe UI', sans-serif;">
+  <div style="max-width: 1200px; margin: auto; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 40px;">
+
+    <!-- Column 1: Logo & Updates -->
+    <div style="flex: 1 1 250px; min-width: 280px;">
+      <img src="logo.png" alt="TrashBid Logo" style="width: 80px; margin-bottom: 16px;">
+      <p style="color: #ccc; font-size: 20px; margin-bottom: 8px;"><strong>TrashBid</strong></p>
+      <p style="color: #aaa; margin-bottom: 16px; font-weight: 600;">Member of the Circular Economy</p>
+      <h3 style="margin-bottom: 12px;">Receive company updates</h3>
+      <label for="email" style="font-size: 14px; color: #aaa; font-weight: 600;">Email *</label>
+      <input type="email" id="email" placeholder="Write your email here..." style="width: 100%; margin-top: 8px; padding: 10px 12px; border: none; border-radius: 4px; margin-bottom: 12px; font-size: 14px;">
+      <button style="background-color: #57a743; border: none; color: white; padding: 10px 16px; border-radius: 4px; cursor: pointer;">Subscribe</button>
+    </div>
+
+    <!-- Column 2: Industries, Sustainability, About -->
+    <div style="flex: 1 1 180px;">
+      <h3 style="margin-bottom: 12px;">Industries</h3>
+      <ul style="list-style: none; padding: 0; color: #ccc;">
+        <li>Manufacturing</li>
+        <li>Chemical</li>
+        <li>Building & Construction</li>
+        <li>Automotive</li>
+        <li>E-waste</li>
+        <li>Plastic</li>
+      </ul>
+      <h3 style="margin: 24px 0 12px;">Sustainability</h3>
+      <ul style="list-style: none; padding: 0; color: #ccc;">
+        <li>Zero Waste</li>
+        <li>Green Metrics</li>
+        <li>Recycling Goals</li>
+        <li>Impact Reports</li>
+      </ul>
+      <h3 style="margin: 24px 0 12px;">About</h3>
+      <ul style="list-style: none; padding: 0; color: #ccc;">
+        <li>About Us</li>
+        <li>Brand Central</li>
+      </ul>
+    </div>
+
+    <!-- Column 3: Products, Insights, Jobs -->
+    <div style="flex: 1 1 180px;">
+      <h3 style="margin-bottom: 12px;">Products</h3>
+      <ul style="list-style: none; padding: 0; color: #ccc;">
+        <li>Smart Auction system</li>
+      </ul>
+      <h3 style="margin: 24px 0 12px;">Insights</h3>
+      <ul style="list-style: none; padding: 0; color: #ccc;">
+        <li>Case Studies</li>
+        <li>News</li>
+        <li>Customer Stories</li>
+        <li>Blog</li>
+      </ul>
+      <h3 style="margin: 24px 0 12px;">Jobs</h3>
+      <ul style="list-style: none; padding: 0; color: #ccc;">
+        <li>Open Positions</li>
+        <li>Careers</li>
+      </ul>
+    </div>
+
+    <!-- Column 4: Contact & Inquiries -->
+    <div style="flex: 1 1 200px;">
+      <h3 style="margin-bottom: 12px;">Contacts - HQ</h3>
+      <p style="color: #ccc;">+91 940 966 2002</p>
+      <p style="color: #ccc;">Vadodara<br>Gujarat, India.</p>
+
+      <h3 style="margin: 24px 0 12px;">Inquiries</h3>
+      <ul style="list-style: none; padding: 0; color: #ccc;">
+        <li>+91 940 966 2002</li>
+        <li>Buy our Services</li>
+        <li>Talk to our sales team</li>
+
+      <h3 style="margin: 24px 0 12px;">New 2025 Brochure</h3>
+      <ul style="list-style: none; padding: 0; color: #ccc;">
+        <li>View in browser</li>
+        <li>Download</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Footer Bottom -->
+  <div style="text-align: center; padding-top: 40px; color: #888; font-size: 14px;">
+    © 2025 TrashBid. All rights reserved.
+  </div>
+</footer>
+
+
+
+
+
+  <!-- Scripts -->
+  <script>
+    const submenuBox = document.getElementById("submenu-box");
+    let hideTimeout;
+
+    const menuContent = {
+      industries: ["Manufacturing", "Automotive", "Construction", "E-Waste", "Chemical", "Plastic"],
+      solutions: ["Logistics", "Smart Auctions", "Reverse Supply Chain", "Analytics"],
+      sustainability: ["Zero Waste", "Recycling Goals", "Green Metrics", "Impact Reports"],
+      insights: ["Case Studies", "Blogs", "Reports", "News"],
+      about: ["Our Team", "Mission", "Careers", "Partners"]
+    };
+
+    function showSubmenu(key) {
+      clearTimeout(hideTimeout);
+      const items = menuContent[key] || [];
+      submenuBox.innerHTML = items.map(item => `<span>${item}</span>`).join('');
+      submenuBox.style.display = "flex";
+    }
+
+    function hideSubmenu() {
+      hideTimeout = setTimeout(() => {
+        submenuBox.style.display = "none";
+      }, 200);
+    }
+
+    function cancelHide() {
+      clearTimeout(hideTimeout);
+    }
+
+    const searchBox = document.getElementById("searchBox");
+    const clearIcon = document.getElementById("clearInput");
+    const searchInput = document.getElementById("searchInput");
+
+    function toggleSearchBox() {
+      searchBox.classList.toggle("active");
+      if (searchBox.classList.contains("active")) {
+        searchInput.focus();
+        toggleClearIcon();
+      } else {
+        searchInput.value = '';
+        toggleClearIcon();
+      }
+    }
+
+    function toggleClearIcon() {
+      clearIcon.style.display = searchInput.value ? "block" : "none";
+    }
+
+    function clearSearch() {
+      searchInput.value = '';
+      toggleClearIcon();
+      searchInput.focus();
+    }
+
+    async function updateStatsSection() {
+    try {
+      const res = await fetch('http://localhost:5000/api/products');
+      const data = await res.json();
+      if (!data.success) throw new Error('Failed to fetch products.');
+
+      const products = data.products;
+      let totalListings = products.length;
+      let totalQuantity = 0;
+      let totalClosedBids = 0;
+
+      const now = new Date();
+
+      products.forEach(product => {
+        totalQuantity += Number(product.quantity || 0);
+
+        const bids = product.bids || [];
+        const highestBid = bids.length
+          ? bids.reduce((prev, curr) => curr.amount > prev.amount ? curr : prev).amount
+          : product.startingPrice || 0;
+
+        const biddingEnd = new Date(product.biddingEndsAt);
+        const isClosed = now > biddingEnd;
+
+        if (isClosed) {
+          totalClosedBids += Number(highestBid);
+        }
+      });
+
+      // Calculate Green Contribution (based on ₹10 saved per kg)
+      const greenContribution = totalQuantity > 0
+        ? Math.min(((totalClosedBids / (totalQuantity * 10)) * 100).toFixed(1), 100)
+        : 0;
+
+      // Update DOM
+      animateCount('totalProducts', 0, totalListings, '', 1000);
+      animateCount('totalQuantity', 0, totalQuantity, ' KG', 1000);
+      animateCount('totalBids', 0, totalClosedBids, '₹', 1000);
+      animateCount('greenContribution', 0, greenContribution, '%', 1000);
+
+
+    } catch (err) {
+      console.error('Failed to update stats:', err);
+    }
+  }
+
+  // Call once on load
+  updateStatsSection();
+
+  // Optionally refresh stats every 30 seconds
+  setInterval(updateStatsSection, 30000);
+
+  function animateCount(id, start, end, suffix = '', duration = 1000) {
+  const element = document.getElementById(id);
+  const range = end - start;
+  const increment = range / (duration / 16); // ~60fps
+  let current = start;
+
+  const step = () => {
+    current += increment;
+    if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+      element.textContent = (suffix === '₹') ? `${suffix}${end}` : `${end}${suffix}`;
+      return;
+    }
+    const rounded = Math.floor(current);
+    element.textContent = (suffix === '₹') ? `${suffix}${rounded}` : `${rounded}${suffix}`;
+    requestAnimationFrame(step);
+  };
+
+  step();
+}
+
+
+  </script>
+</body>
+</html>

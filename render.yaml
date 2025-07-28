@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: trashbid
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false # Will be set manually in Render dashboard
+    disk:
+      name: uploads
+      mountPath: /opt/render/project/src/uploads
+      sizeGB: 1 

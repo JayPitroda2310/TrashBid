@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TrashBid - Listings</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: url('https://t4.ftcdn.net/jpg/08/12/67/23/360_F_812672374_kjTgzHRmXyu7QbHmwBZaDnbrrzSbX0xC.jpg') no-repeat center center fixed;
+      background-size: cover;
+    }
+
+    h1 {
+      text-align: center;
+      color: #000;
+    }
+
+    .listings-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    .card {
+      width: 300px;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #000;
+    }
+
+    .card img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+    }
+
+    .card-content {
+      padding: 15px;
+    }
+
+    .card-content h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      color: #000;
+    }
+
+    .card-content p {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: #000;
+    }
+
+    .price, .countdown {
+      font-weight: bold;
+      color: #000;
+    }
+
+    .bid-form input {
+      width: calc(100% - 12px);
+      padding: 6px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.2);
+      color: #000;
+    }
+
+    .bid-form input::placeholder {
+      color: #000;
+    }
+
+    .bid-form button {
+      width: 100%;
+      padding: 8px;
+      background-color: #57a743;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .bid-form button:hover {
+      background-color: #57a743;
+    }
+
+    .delete-button {
+      width: 100%;
+      padding: 8px;
+      background-color: rgb(0, 0, 0);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .delete-button:hover {
+      background-color: rgb(0, 0, 0);
+    }
+  </style>
+</head>
+<body>
+  <h1>All Industrial Waste Listings</h1>
+  <div class="listings-container" id="listingsContainer"></div>
+
+  <script>
+    async function fetchListings() {
+      try {
+        const res = await fetch('http://localhost:5000/api/products');
+        const json = await res.json();
+
+        if (!json.success) {
+          console.error('Error fetching products:', json.message);
+          document.getElementById('listingsContainer').innerHTML = '<p>Error loading listings</p>';
+          return;
+        }
+
+        const products = json.products;
+        const container = document.getElementById('listingsContainer');
+        container.innerHTML = '';
+
+        if (!products.length) {
+          container.innerHTML = '<p>No listings found.</p>';
+          return;
+        }
+
+        products.forEach(product => {
+          const card = document.createElement('div');
+          card.className = 'card';
+
+          const endTime = new Date(product.biddingEndsAt);
+          const timerId = `timer-${product._id}`;
+          const bids = product.bids || [];
+          const highestBidObj = bids.length > 0
+            ? bids.reduce((prev, curr) => (curr.amount > prev.amount ? curr : prev))
+            : { amount: product.startingPrice, bidderName: '-' };
+          const highest = highestBidObj.amount;
+
+          card.innerHTML = `
+            <img src="http://localhost:5000${product.imageUrl}" alt="${product.name}" />
+            <div class="card-content">
+              <h3>${product.name}</h3>
+              <p>${product.description}</p>
+              <p><strong>Quantity:</strong> ${product.quantity} kg</p>
+              <p class="price">Highest Bid: ₹${highest}</p>
+              <p class="countdown" id="${timerId}">⏳ Loading...</p>
+              <div id="form-${product._id}"></div>
+              <button class="delete-button" onclick="deleteProduct('${product._id}')">🗑️ Delete</button>
+            </div>
+          `;
+
+          container.appendChild(card);
+          setupCountdownAndForm(product, endTime, highestBidObj);
+        });
+      } catch (err) {
+        console.error('Error:', err);
+        document.getElementById('listingsContainer').innerHTML = '<p>Failed to load listings.</p>';
+      }
+    }
+
+    function setupCountdownAndForm(product, endTime, highestBidObj) {
+      const id = product._id;
+      const timerEl = document.getElementById(`timer-${id}`);
+      const formContainer = document.getElementById(`form-${id}`);
+      const now = new Date();
+      const localBidder = localStorage.getItem(`bidderName-${id}`);
+      const highestBidder = highestBidObj.bidderName;
+
+      const update = () => {
+        const diff = endTime - new Date();
+
+        if (diff <= 0) {
+          clearInterval(interval);
+          timerEl.textContent = '⏰ Bidding Closed';
+
+          if (localBidder && highestBidder && localBidder === highestBidder) {
+            formContainer.innerHTML = `<p style="color: black;">🏆 You Won</p>`;
+          } else {
+            formContainer.innerHTML = `<p style="color: black;">🏆 You Lost</p>`;
+          }
+
+          return;
+        }
+
+        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const m = Math.floor((diff / (1000 * 60)) % 60);
+        const s = Math.floor((diff / 1000) % 60);
+        timerEl.textContent = `⏳ ${d}d ${h}h ${m}m ${s}s left`;
+      };
+
+      const interval = setInterval(update, 1000);
+      update();
+
+      if (now >= endTime) {
+        if (localBidder && highestBidder && localBidder === highestBidder) {
+          formContainer.innerHTML = `<p style="color: black;">🏆 You Won</p>`;
+        } else {
+          formContainer.innerHTML = `<p style="color: black;">🏆 You Lost</p>`;
+        }
+        return;
+      }
+
+      formContainer.innerHTML = `
+        <form class="bid-form" data-id="${id}">
+          <input type="text" name="bidderName" placeholder="Your Name" required />
+          <input type="number" name="amount" placeholder="Bid Amount" min="${highestBidObj.amount + 1}" required />
+          <button type="submit">Place Bid</button>
+        </form>
+      `;
+
+      formContainer.querySelector('form').addEventListener('submit', async e => {
+        e.preventDefault();
+        const f = e.target;
+        const data = {
+          bidderName: f.bidderName.value,
+          amount: Number(f.amount.value)
+        };
+
+        localStorage.setItem(`bidderName-${id}`, data.bidderName);
+
+        const r = await fetch(`http://localhost:5000/api/products/${id}/bid`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const res = await r.json();
+        alert(res.message);
+        if (res.success) fetchListings();
+      });
+    }
+
+    async function deleteProduct(productId) {
+      const confirmDelete = confirm("Are you sure you want to delete this listing?");
+      if (!confirmDelete) return;
+
+      try {
+        const res = await fetch(`http://localhost:5000/api/products/${productId}`, {
+          method: 'DELETE',
+        });
+
+        const json = await res.json();
+        alert(json.message);
+
+        if (json.success) {
+          fetchListings(); // Refresh the listings after deletion
+        }
+      } catch (error) {
+        console.error("❌ Error deleting product:", error);
+        alert("🚨 Failed to delete product.");
+      }
+    }
+
+    fetchListings();
+  </script>
+</body>
+</html>

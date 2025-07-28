@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>List Industrial Waste - TrashBid</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: url('https://sanasecurities.com/wp-content/uploads/2023/02/Energy-transitions.jpg') no-repeat center center fixed;
+      background-size: cover;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    form {
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 12px;
+      padding: 30px 20px;
+      width: 90%;
+      max-width: 420px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 80px;
+      margin-top: 80px;
+    }
+
+    form h2 {
+      margin-bottom: 30px;
+      text-align: center;
+      color: #28a745;
+      margin-top: 2px;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      max-width: 380px;
+      padding: 12px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.2);
+      color: #000;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+
+    input::placeholder, textarea::placeholder {
+      color: #000;
+    }
+
+    select {
+      color: #000;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    label {
+      color: #000;
+      font-weight: bold;
+      display: block;
+      width: 100%;
+      max-width: 380px;
+      margin: 10px 0 6px;
+    }
+
+    .duration-group {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 380px;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .duration-group input {
+      flex: 1;
+    }
+
+    button {
+      width: 100%;
+      max-width: 380px;
+      padding: 12px;
+      background-color: #28a745;
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+  </style>
+</head>
+<body>
+
+  <form id="productForm" enctype="multipart/form-data">
+    <h2>List Your Product</h2>
+
+    <input type="text" name="name" placeholder="Product Name" required />
+    <textarea name="description" placeholder="Product Description" required></textarea>
+    <input type="number" name="quantity" placeholder="Quantity (in Kgs)" required min="1" />
+    <input type="number" name="startingPrice" placeholder="Base Price (₹)" required min="1" />
+
+    <select name="category" required>
+      <option value="">Select Category</option>
+      <option value="E-Waste">E-Waste</option>
+      <option value="Plastic">Plastic</option>
+      <option value="Metal">Metal</option>
+      <option value="Chemical">Chemical</option>
+    </select>
+
+    <label for="biddingDays">Bidding Duration:</label>
+    <div class="duration-group">
+      <input type="number" name="biddingDays" placeholder="Days" min="0" required />
+      <input type="number" name="biddingHours" placeholder="Hours" min="0" required />
+      <input type="number" name="biddingMinutes" placeholder="Minutes" min="0" required />
+    </div>
+
+    <input type="file" name="image" accept="image/*" required />
+
+    <button type="submit">Submit Listing</button>
+  </form>
+
+  <script>
+    document.getElementById('productForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const form = this;
+      const formData = new FormData(form);
+
+      const biddingDays = parseInt(formData.get("biddingDays")) || 0;
+      const biddingHours = parseInt(formData.get("biddingHours")) || 0;
+      const biddingMinutes = parseInt(formData.get("biddingMinutes")) || 0;
+
+      const durationMs = (
+        (biddingDays * 24 * 60) +
+        (biddingHours * 60) +
+        biddingMinutes
+      ) * 60 * 1000;
+
+      if (durationMs <= 0) {
+        alert("Please enter a valid bidding duration.");
+        return;
+      }
+
+      const biddingEndsAt = new Date(Date.now() + durationMs).toISOString();
+      formData.append("biddingEndsAt", biddingEndsAt);
+
+      formData.delete("biddingDays");
+      formData.delete("biddingHours");
+      formData.delete("biddingMinutes");
+
+      try {
+        const response = await fetch('http://localhost:5000/api/products', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+        alert(result.message || "Product listed successfully!");
+        form.reset();
+      } catch (err) {
+        alert("❌ Failed to list product. Please try again.");
+        console.error(err);
+      }
+    });
+  </script>
+
+</body>
+</html>
